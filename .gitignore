@@ -1,1 +1,3 @@
 *.json
+*.edgelist
+*.pickle
