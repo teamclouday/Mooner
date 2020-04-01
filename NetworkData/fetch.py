@@ -58,6 +58,7 @@ class Crawler:
 
     def load_auths(self):
         """Load auth apis from json"""
+        assert os.path.exists(self.auth_path)
         with open(self.auth_path, "r") as inFile:
             data = json.load(inFile)
         for api_info in data:
@@ -95,7 +96,8 @@ class Crawler:
         """Start crawling"""
         assert self.start is not None
         assert len(self.api_queue) >= 1
-        time_start = time.time()
+        if not hasattr(self, "time_start") or self.time_start is None:
+            self.time_start = time.time()
         self.nodes_in_search = [self.start] if len(self.nodes_in_search) <= 0 else self.nodes_in_search
         while self.graph.number_of_nodes() < self.max_nodes:
             if len(self.nodes_in_search) <= 0: break
@@ -110,9 +112,9 @@ class Crawler:
                 except tweepy.RateLimitError:
                     self.api_queue[0].block() # block current api
                     remaining = self.recycle_apis() # recycle apis
+                    self._tmp_save()
                     if(remaining > 0): # if all apis are blocked, then wait
                         print("All APIs are blocked, sleeping for {:.2f}s".format(remaining))
-                        self._tmp_save()
                         time.sleep(remaining + 1)
                     continue
                 except tweepy.TweepError as e:
@@ -140,7 +142,18 @@ class Crawler:
             dataframe.to_csv("fetchcontent.csv", index=False)
         if not self.keep_cache:
             self._tmp_delete()
-        print("Total Running Time: {:.2f}hr".format((time.time() - time_start) / 60 / 60))
+        print("Total Running Time: {:.2f}hr".format((time.time() - self.time_start) / 60 / 60))
+        self.time_start = None
+
+    def display_info(self, csv_file=None):
+        graph = self.graph
+        if csv_file:
+            dataframe = pd.read_csv(csv_file)
+            graph = nx.from_pandas_edgelist(dataframe)
+        print("Number of nodes: {}".format(graph.number_of_nodes()))
+        print("Number of edges: {}".format(graph.number_of_edges()))
+        print("Radius: {}".format(nx.radius(graph)))
+        print("Density: {}".format(nx.density(graph)))
 
     def _extract_ids(self, ids, result=[]):
         try:
@@ -173,8 +186,23 @@ class Crawler:
         if os.path.exists("fetch.py.tmp.pickle"):
             os.remove("fetch.py.tmp.pickle")
 
+def recover():
+    """Recover running app from temp pickle file"""
+    if os.path.exists("fetch.py.tmp.pickle"):
+        with open("fetch.py.tmp.pickle", "rb") as inFile:
+            app = pickle.load(inFile)
+        startid = app.start
+        app.load_auths()
+        app.set_starting_user(userid=startid)
+        app.run()
+    else:
+        print("No tmp pickle found\nFailed to recover")
+
 if __name__ == "__main__":
-    app = Crawler(auth_path=os.path.join("auth.json"), max_nodes=1000, max_leaves=10)
+    app = Crawler(auth_path=os.path.join("auth.json"), max_nodes=10000, max_leaves=20)
     app.load_auths()
     app.set_starting_user(username="3blue1brown")
     app.run()
+    app.display_info()
+    # recover()
+    # app.display_info(csv_file="fetchcontent.csv")
