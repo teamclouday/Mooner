@@ -12,7 +12,7 @@ def process_str(raw_string):
     global ch_range
     global stemmer
     # first remove url, @username, etc
-    raw_string = re.sub(r"@([A-Z]|[a-z]|[0-9]|_)+", "", raw_string)
+    raw_string = re.sub(r"(@|#)([A-Z]|[a-z]|[0-9]|_)+", "", raw_string)
     raw_string = re.sub(r"(http|https)://([A-Z]|[a-z]|[0-9]|/|\.)+", "", raw_string)
     # remove characters other than [a-z][A-Z][0-9]['!?] or empty space
     new_string = "".join([ch.lower() if ord(ch) in ch_range else ' ' for ch in list(raw_string)])
@@ -28,7 +28,7 @@ PAD_MAXLEN = 45
 model = tf.keras.models.load_model(os.path.join("models", "cnn.h5"))
 
 while True:
-    text = input("Enter the text you want to classify (enter \"exit\" to exit):\n")
+    text = input("Enter the text you want to classify (enter \"exit\" to exit):\n>>> ")
     if text == "exit":
         break
     text_processed = process_str(text)
@@ -36,4 +36,4 @@ while True:
     text_processed = tf.keras.preprocessing.sequence.pad_sequences(text_processed, padding="post", maxlen=PAD_MAXLEN)
     result = model.predict(text_processed)[0][0]
     text_result = "positive" if result >= 0.5 else "negative"
-    print(text_result, result)
+    print("Result: {} - Actual Output: {}\n".format(text_result, result))
