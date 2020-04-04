@@ -4,6 +4,7 @@
 # It will start crawling from a given point of user
 
 import os
+import sys
 import json
 import time
 import tweepy
@@ -123,14 +124,15 @@ class Crawler:
                     continue
                 else:
                     if (hasattr(self, "tmp_result") and hasattr(self, "tmp_ids")) and (self.tmp_result is not None) and (self.tmp_ids is not None):
-                        extracted_ids = self._extract_ids(self.tmp_ids, self.tmp_result)
+                        extracted_ids = self._extract_ids(nodeid, self.tmp_ids, self.tmp_result)
                     else:
-                        extracted_ids = self._extract_ids(list(set(follower_ids + friends_ids)))
+                        extracted_ids = self._extract_ids(nodeid, list(set(follower_ids + friends_ids)))
                     for extractedid in extracted_ids:
-                        self.new_nodes_in_search.append(extractedid)
+                        if not self.graph.has_node(extractedid):
+                            self.new_nodes_in_search.append(extractedid)
                         self.graph.add_edge(nodeid, extractedid)
                     self.search_index += 1
-                    print("Retrieve complete - Current graph size: {}".format(self.graph.number_of_nodes()))
+                    print("Retrieve complete - Current graph size: {} - Num of edges: {}".format(self.graph.number_of_nodes(), self.graph.number_of_edges()))
                     time.sleep(1)
             self.nodes_in_search = self.new_nodes_in_search
             self.search_index = -1
@@ -155,14 +157,14 @@ class Crawler:
         print("Radius: {}".format(nx.radius(graph)))
         print("Density: {}".format(nx.density(graph)))
 
-    def _extract_ids(self, ids, result=[]):
+    def _extract_ids(self, parentid, ids, result=[]):
         try:
             current_ids = []
             result_copy = result.copy()
             while len(ids) > 0:
                 current_ids = ids[:100]
                 ids = ids[100:]
-                result_copy += [[u.id, u.followers_count + u.friends_count] for u in self.api_queue[0].api.lookup_users(user_ids=current_ids) if (not self.graph.has_node(u.id))]
+                result_copy += [[u.id, u.followers_count + u.friends_count] for u in self.api_queue[0].api.lookup_users(user_ids=current_ids) if (not self.graph.has_edge(parentid, u.id))]
             self.tmp_result = None
             self.tmp_ids = None
             result_copy = [x[0] for x in sorted(result_copy, key=lambda m: m[1], reverse=True)][:self.max_leaves]
@@ -176,7 +178,10 @@ class Crawler:
                 self.tmp_ids = current_ids + ids
                 self._tmp_save()
                 time.sleep(remaining + 1)
-            return self._extract_ids(current_ids + ids, result)
+            return self._extract_ids(parentid, current_ids + ids, result)
+        except tweepy.TweepError as e:
+            print("Error: {}".format(e))
+            return self._extract_ids(parentid, ids, result)
 
     def _tmp_save(self):
         with open("fetch.py.tmp.pickle", "wb") as outFile:
@@ -194,15 +199,19 @@ def recover():
         startid = app.start
         app.load_auths()
         app.set_starting_user(userid=startid)
-        app.run()
+        return app
     else:
         print("No tmp pickle found\nFailed to recover")
+        sys.exit()
 
 if __name__ == "__main__":
-    app = Crawler(auth_path=os.path.join("auth.json"), max_nodes=10000, max_leaves=20)
+    app = Crawler(auth_path=os.path.join("auth.json"), max_nodes=10000, max_leaves=10, keep_cache=True)
     app.load_auths()
     app.set_starting_user(username="3blue1brown")
     app.run()
     app.display_info()
-    # recover()
+    # app = recover()
+    # app.display_info()
+    # dataframe = nx.to_pandas_edgelist(app.graph)
+    # dataframe.to_csv("fetchcontent.csv", index=False)
     # app.display_info(csv_file="fetchcontent.csv")
