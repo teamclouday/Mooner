@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import tensorflow as tf
 from nltk.stem.snowball import SnowballStemmer
+tf.config.set_visible_devices([], 'GPU') # force use CPU, in case no GPU available
 
 stemmer = SnowballStemmer("english")
 ch_range = list(range(97, 123)) + list(range(65, 91)) + [ord(' '), ord('\'')]
