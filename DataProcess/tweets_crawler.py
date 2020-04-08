@@ -30,7 +30,7 @@ class TwitterAPI:
         self.remaining_time = 0 if self.remaining_time <= 0 else self.remaining_time
 
 class TweetCrawler:
-    def __init__(self, userids, auth_path="auth.json", limit_lan="en", num_per_user=50, min_per_user=5, only_long_tweets=True, keep_cache=False):
+    def __init__(self, userids, auth_path="auth.json", limit_lan="en", num_per_user=50, min_per_user=5, min_words_per_tweet=5, only_long_tweets=True, keep_cache=False):
         self.auth_path = auth_path
         self.api_queue = []
         self.num_per_user = num_per_user
@@ -45,6 +45,7 @@ class TweetCrawler:
         self.tweets = {}
         self.char_list = list(range(97, 123)) + list(range(65, 91)) + [ord(' '), ord('\'')]
         self.limit_lan = limit_lan
+        self.min_words_per_tweet = min_words_per_tweet
 
     def load_auths(self):
         """Load auth apis from json"""
@@ -100,7 +101,8 @@ class TweetCrawler:
                 tweets = [tweet.full_text for tweet in tweets]
                 tweets_with_length = [[text, self._tweet_length(text)] for text in tweets]
                 tweets_with_length.sort(key=lambda x: x[1], reverse=True) # sort by number of words
-                final_tweets = [x[0] for x in tweets_with_length[:self.num_per_user]] # get final tweets
+                final_tweets = [x[0] for x in tweets_with_length if x[1] >= self.min_words_per_tweet] # get final tweets
+                final_tweets = final_tweets[:self.num_per_user]
                 if len(final_tweets) < self.min_per_user:
                     print("Too few tweets: {}, skip".format(len(final_tweets)))
                 else:
