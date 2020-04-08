@@ -31,7 +31,7 @@ class TwitterAPI:
         self.remaining_time = 0 if self.remaining_time <= 0 else self.remaining_time
 
 class Crawler:
-    def __init__(self, auth_path="auth.json", max_nodes=100000, max_leaves=10, keep_cache=False):
+    def __init__(self, auth_path="auth.json", max_nodes=100000, max_leaves=10, keep_cache=False, limit_lan="en"):
         self.auth_path = auth_path
         self.api_queue = []
         self.start = None
@@ -46,6 +46,7 @@ class Crawler:
         assert max_leaves < 5000
         assert max_leaves > 0
         self.max_leaves = max_leaves
+        self.limit_lan = limit_lan
 
     def set_starting_user(self, username=None, userid=None):
         """Set the starting point"""
@@ -164,7 +165,10 @@ class Crawler:
             while len(ids) > 0:
                 current_ids = ids[:100]
                 ids = ids[100:]
-                result_copy += [[u.id, u.followers_count + u.friends_count] for u in self.api_queue[0].api.lookup_users(user_ids=current_ids) if (not self.graph.has_edge(parentid, u.id))]
+                result_copy += [[u.id, u.followers_count + u.friends_count] 
+                    for u in self.api_queue[0].api.lookup_users(user_ids=current_ids) 
+                    if (not self.graph.has_edge(parentid, u.id)) and 
+                    (hasattr(u, "status") and (u.status.lang is None or u.status.lang == self.limit_lan))] # either None or target language will be accepted
             self.tmp_result = None
             self.tmp_ids = None
             result_copy = [x[0] for x in sorted(result_copy, key=lambda m: m[1], reverse=True)][:self.max_leaves]
@@ -182,6 +186,26 @@ class Crawler:
         except tweepy.TweepError as e:
             print("Error: {}".format(e))
             return self._extract_ids(parentid, ids, result)
+
+    # def _validate_user(self, userid):
+    #     try:
+    #         tweets = self.api_queue[0].api.user_timeline(user_id=userid, count=50)
+    #         tweets = [x for x in tweets if x.lang==self.limit_lan]
+    #         if len(tweets) >= 45:
+    #             return True
+    #         else:
+    #             return False # not valid user with target language
+    #     except tweepy.RateLimitError:
+    #         self.api_queue[0].block()
+    #         remaining = self.recycle_apis()
+    #         if(remaining > 0): # if all apis are blocked, then wait
+    #             print("All APIs are blocked, sleeping for {:.2f}s".format(remaining))
+    #             self._tmp_save()
+    #             time.sleep(remaining + 1)
+    #         return self._validate_user(userid)
+    #     except tweepy.TweepError as e:
+    #         print("Tweet Error: {}".format(e))
+    #         return False # default to False if error occurs
 
     def _tmp_save(self):
         with open("fetch.py.tmp.pickle", "wb") as outFile:
