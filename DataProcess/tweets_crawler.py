@@ -30,7 +30,7 @@ class TwitterAPI:
         self.remaining_time = 0 if self.remaining_time <= 0 else self.remaining_time
 
 class TweetCrawler:
-    def __init__(self, userids, auth_path="auth.json", num_per_user=50, only_long_tweets=True, keep_cache=False):
+    def __init__(self, userids, auth_path="auth.json", num_per_user=50, min_per_user=5, only_long_tweets=True, keep_cache=False):
         self.auth_path = auth_path
         self.api_queue = []
         self.num_per_user = num_per_user
@@ -39,6 +39,7 @@ class TweetCrawler:
         self.only_long_tweets = only_long_tweets
         self.keep_cache = keep_cache
         self.target_user_ids = userids
+        self.min_per_user = min_per_user
         self.cursor = -1
         self.current_userid_index = 0
         self.tweets = {}
@@ -67,9 +68,9 @@ class TweetCrawler:
         num = len(self.target_user_ids) - self.current_userid_index - 1
         print("Total num of ids to crawl: {}".format(num))
         print("Max num of tweets per user: {}".format(self.num_per_user))
-        num *= self.num_per_user
-        if self.only_long_tweets: num *= 2
-        print("Estimated running time: {:.2f}hr".format(num / (len(self.api_queue) * 1500) * 15 / 60))
+        #num *= self.num_per_user
+        #if self.only_long_tweets: num *= 2
+        #print("Estimated running time: {:.2f}hr".format(num / (len(self.api_queue) * 1500) * 15 / 60)) # this estimated time is not accurate, in reality, there seems to be no rate limit on user_timeline call
         if not hasattr(self, "start_time") or self.start_time is None:
             self.start_time = time.time()
         while self.current_userid_index < len(self.target_user_ids):
@@ -91,24 +92,29 @@ class TweetCrawler:
                 continue
             except tweepy.TweepError as e:
                 print("Error: {}\nCurrent userid = {}\nIgnore and continue".format(e, current_user))
+                self._tmp_save()
                 self.current_userid_index += 1
                 continue
             else:
                 tweets = [tweet.full_text for tweet in tweets]
-                tweets_with_length = [[self._tweet_length(text), text] for text in tweets]
+                tweets_with_length = [[text, self._tweet_length(text)] for text in tweets]
                 tweets_with_length.sort(key=lambda x: x[1], reverse=True) # sort by number of words
                 final_tweets = [x[0] for x in tweets_with_length[:self.num_per_user]] # get final tweets
-                self.tweets[current_user] = final_tweets
-                print("{:.1f}% - {} tweets fetched for userid={}".format(percent, len(final_tweets), current_user))
+                if len(final_tweets) < self.min_per_user:
+                    print("Too few tweets: {}, skip".format(len(final_tweets)))
+                else:
+                    self.tweets[current_user] = final_tweets
+                    print("{:.1f}% - {} tweets fetched for userid={}".format(percent, len(final_tweets), current_user))
             self.current_userid_index += 1
         self._tmp_save()
+        print("Crawling finished\nNumber of users saved: {}".format(len(self.tweets.keys())))
         if savefile:
-            with open("tweets.json", "w") as outFile:
+            with open("tweets_{}.json".format(self.num_per_user), "w") as outFile:
                 json.dump(self.tweets, outFile)
-            print("File Saved")
+            print("Json file saved")
         if not self.keep_cache:
             self._tmp_delete()
-        print("Running Time: {:.2f}min".format((time.time() - self.start_time) / 60))
+        print("Total running time: {:.2f}min".format((time.time() - self.start_time) / 60))
         self.start_time = None
     
     def recycle_apis(self):
