@@ -168,7 +168,7 @@ class Crawler:
                 result_copy += [[u.id, u.followers_count + u.friends_count] 
                     for u in self.api_queue[0].api.lookup_users(user_ids=current_ids) 
                     if (not self.graph.has_edge(parentid, u.id)) and 
-                    (hasattr(u, "status") and (u.status.lang is None or u.status.lang == self.limit_lan))] # either None or target language will be accepted
+                    (hasattr(u, "status") and (u.status.lang == self.limit_lan))] # only users with target language will be accepted
             self.tmp_result = None
             self.tmp_ids = None
             result_copy = [x[0] for x in sorted(result_copy, key=lambda m: m[1], reverse=True)][:self.max_leaves]
