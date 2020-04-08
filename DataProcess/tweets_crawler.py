@@ -30,7 +30,7 @@ class TwitterAPI:
         self.remaining_time = 0 if self.remaining_time <= 0 else self.remaining_time
 
 class TweetCrawler:
-    def __init__(self, userids, auth_path="auth.json", num_per_user=50, min_per_user=5, only_long_tweets=True, keep_cache=False):
+    def __init__(self, userids, auth_path="auth.json", limit_lan="en", num_per_user=50, min_per_user=5, only_long_tweets=True, keep_cache=False):
         self.auth_path = auth_path
         self.api_queue = []
         self.num_per_user = num_per_user
@@ -44,6 +44,7 @@ class TweetCrawler:
         self.current_userid_index = 0
         self.tweets = {}
         self.char_list = list(range(97, 123)) + list(range(65, 91)) + [ord(' '), ord('\'')]
+        self.limit_lan = limit_lan
 
     def load_auths(self):
         """Load auth apis from json"""
@@ -79,9 +80,9 @@ class TweetCrawler:
             print("{:.1f}% - Now crawling tweets from userid={}".format(percent, current_user))
             try:
                 if self.only_long_tweets:
-                    tweets = self.api_queue[0].api.user_timeline(user_id=current_user, count=self.num_per_user*2, tweet_mode="extended") # if only long tweets, need to fetch more
+                    tweets = self.api_queue[0].api.user_timeline(user_id=current_user, count=self.num_per_user*2, tweet_mode="extended", lang=self.limit_lan) # if only long tweets, need to fetch more
                 else:
-                    tweets = self.api_queue[0].api.user_timeline(user_id=current_user, count=self.num_per_user, tweet_mode="extended")
+                    tweets = self.api_queue[0].api.user_timeline(user_id=current_user, count=self.num_per_user, tweet_mode="extended", lang=self.limit_lan)
             except tweepy.RateLimitError:
                 self.api_queue[0].block() # block current api
                 remaining = self.recycle_apis() # recycle apis
@@ -163,6 +164,6 @@ if __name__ == "__main__":
     for community in df["Centers ID"]:
         userids += [int(x) for x in community.split(" | ")]
     app = TweetCrawler(userids=userids, auth_path=os.path.join("..", "NetworkData", "auth.json"),
-                       num_per_user=200, only_long_tweets=True, keep_cache=True)
+                       limit_lan="en", num_per_user=200, only_long_tweets=True, keep_cache=True)
     app.load_auths()
     app.run(savefile=True)
