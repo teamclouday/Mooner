@@ -18,6 +18,21 @@ from operator import itemgetter
 
 tf.config.set_visible_devices([], 'GPU') # force use CPU, in case no GPU available
 
+def preprocess(text):
+    """General method for preprocessing tweet text"""
+    # remove emojis
+    text = re.sub(r"(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])", "", text)
+    # remove non-ascii characters 
+    text = re.sub(r"[^\x00-\x7f]", "", text)
+    # remove @usernames or #tag
+    text = re.sub(r"(@|#)([A-Z]|[a-z]|[0-9]|_)+", "", text)
+    # remove urls
+    text = re.sub(r"(http|https)://([A-Z]|[a-z]|[0-9]|/|\.)+", "", text)
+    # remove spaces
+    text = text.strip()
+    # return
+    return text
+
 class ModelSentiment:
     def __init__(self):
         if not os.path.exists("model_sentiment.pkl") or not os.path.exists("model_sentiment.h5"):
@@ -78,7 +93,7 @@ class ModelSentiment:
         return new_string
 
 class ModelTopic:
-    def __init__(self, feed_data_path=os.path.join("..", "DataProcess", "tweets_200_processed.csv")):
+    def __init__(self, feed_data_path=os.path.join("..", "SentimentAnalysis", "dataset", "sentiment140", "processed.csv")):
         self.data_path = feed_data_path
         if not os.path.exists("model_topic_dict.txt") or not os.path.exists("model_topic.gensim"):
             self._first_init()
@@ -116,7 +131,7 @@ class ModelTopic:
         iterations = 400
         # read in file
         data = pd.read_csv(self.data_path)
-        tweetslist = data['Tweet'].values
+        tweetslist = data['Text'].values
         tweetslist = self._preprocessing_data(tweetslist)
         # Create a dictionary representation of the documents.
         dictionary = Dictionary(tweetslist)
@@ -177,12 +192,12 @@ class ModelTopic:
 
 if __name__ == "__main__":
     # test sentiment model
-    print("Testing Sentiment Model")
-    model_sent = ModelSentiment()
-    test_str = input("Enter test string:\n")
-    while test_str == "":
-        test_str = input("Empty string. Try again:\n")
-    print(model_sent.run(test_str))
+    # print("Testing Sentiment Model")
+    # model_sent = ModelSentiment()
+    # test_str = input("Enter test string:\n")
+    # while test_str == "":
+    #     test_str = input("Empty string. Try again:\n")
+    # print(model_sent.run(test_str))
     # test topic model
     print("Testing Topic Model")
     model_topic = ModelTopic()
