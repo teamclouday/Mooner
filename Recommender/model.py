@@ -2,22 +2,34 @@
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # disable tensorflow warnings
+import warnings
+warnings.filterwarnings('ignore') # ignore sklearn warnings
 import re
 import shutil
+import string
 import pickle
 import pandas as pd
 import tensorflow as tf
+from nltk import word_tokenize
 from nltk.corpus import stopwords
-from nltk.tokenize import RegexpTokenizer
 from nltk.stem.snowball import SnowballStemmer
-from nltk.stem.wordnet import WordNetLemmatizer
-from gensim.models import Phrases
-from gensim.models import LdaModel
-from gensim.corpora import Dictionary
-from gensim.models.callbacks import PerplexityMetric
-from operator import itemgetter
+from sklearn.svm import LinearSVC
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+# from nltk.corpus import stopwords
+# from nltk.tokenize import RegexpTokenizer
+# from nltk.stem.wordnet import WordNetLemmatizer
+# from gensim.models import Phrases
+# from gensim.models import LdaModel
+# from gensim.corpora import Dictionary
+# from gensim.models.callbacks import PerplexityMetric
+# from operator import itemgetter
 
 tf.config.set_visible_devices([], 'GPU') # force use CPU, in case no GPU available
+
+def tokenizer(text):
+    stemmer = SnowballStemmer('english')
+    return [stemmer.stem(x) for x in word_tokenize(text)]
 
 def preprocess(text):
     """General method for preprocessing tweet text"""
@@ -96,16 +108,19 @@ class ModelSentiment:
         return new_string
 
 class ModelTopic:
-    def __init__(self, feed_data_path=os.path.join("..", "SentimentAnalysis", "dataset", "sentiment140", "processed.csv")):
-        self.data_path = feed_data_path
-        if not os.path.exists("model_topic_dict.txt") or not os.path.exists("model_topic.gensim"):
+    def __init__(self):
+        if not os.path.exists("model_topic_dict.pkl"):
             self._first_init()
         self.init()
 
     def init(self):
         """load model and dictionary from disk"""
-        self.dictionary = Dictionary.load_from_text("model_topic_dict.txt")
-        self.model = LdaModel.load("model_topic.gensim")
+        with open("model_topic_dict.pkl", "rb") as inFile:
+            targets, model = pickle.load(inFile)
+        self.targets = targets
+        self.model = model
+        # self.dictionary = Dictionary.load_from_text("model_topic_dict.txt")
+        # self.model = LdaModel.load("model_topic.gensim")
         print("Topic Extraction Model Initialized")
 
     def run(self, data):
@@ -114,96 +129,101 @@ class ModelTopic:
         if isinstance(data, str):
             data = [data]
             islist = False
-        data = self._preprocessing_data(data)
-        data = [self.dictionary.doc2bow(x) for x in data]
-        result = [self.model[x] for x in data]
-        result = [sorted(x, key=itemgetter(1), reverse=True) for x in result]
-        result = [self.model.print_topic(x[0][0], 5) for x in result]
+        result = [self.targets[x] for x in self.model.predict(data)]
+        # data = self._preprocessing_data(data)
+        # data = [self.dictionary.doc2bow(x) for x in data]
+        # result = [self.model.get_document_topics(x) for x in data]
+        # result = [sorted(x, key=itemgetter(1), reverse=True) for x in result]
+        # result = [self.model.print_topic(x[0][0], 5) for x in result]
         if not islist:
             result = result[0]
         return result
 
     def _first_init(self):
-        """train the model on data"""
-        settings = {}
-        print("First time init. Need to train model. Please wait")
-        # Set training parameters
-        num_topics = 20
-        chunksize = 100
-        passes = 50
-        iterations = 400
-        # read in file
-        data = pd.read_csv(self.data_path)
-        tweetslist = data['Text'].values
-        tweetslist = self._preprocessing_data(tweetslist)
-        # Create a dictionary representation of the documents.
-        dictionary = Dictionary(tweetslist)
-        # Save dict
-        dictionary.save_as_text("model_topic_dict.txt")
-        # Filter out words that occur less than 20 documents, or more than 50% of the documents.
-        dictionary.filter_extremes(no_below=20, no_above=0.6)
-        # Bag-of-words representation of the documents.
-        corpus = [dictionary.doc2bow(doc) for doc in tweetslist]
-        # Make a index to word dictionary.
-        temp = dictionary[0]  # This is only to "load" the dictionary.
-        id2word = dictionary.id2token
-        # Get train model
-        perplexity_logger = PerplexityMetric(corpus=corpus, logger='shell')
-        model = LdaModel(corpus=corpus,
-                         id2word=id2word,
-                         chunksize=chunksize,
-                         alpha="auto",
-                         eta="auto",
-                         iterations=iterations,
-                         num_topics=num_topics,
-                         passes=passes,
-                         eval_every=None,
-                         callbacks=[perplexity_logger])
-        model.save("model_topic.gensim")
+        """Prepare the files"""
+        shutil.copyfile(os.path.join("..", "TopicExtraction", "multinomial.pkl"), "model_topic_dict.pkl")
 
-    def _preprocessing_data(self, data):
-        """preprocess data for training"""
-        # Split the documents into tokens.
-        tokenizer = RegexpTokenizer(r'\w+')
-        for idx in range(len(data)):
-            data[idx] = data[idx].lower()  # Convert to lowercase.
-            data[idx] = tokenizer.tokenize(data[idx])  # Split into words.
+    # def _first_init(self):
+    #     """train the model on data"""
+    #     settings = {}
+    #     print("First time init. Need to train model. Please wait")
+    #     # Set training parameters
+    #     num_topics = 10
+    #     chunksize = 1000
+    #     passes = 20
+    #     iterations = 400
+    #     # read in file
+    #     data = pd.read_csv(self.data_path)
+    #     tweetslist = data['tweet '].values
+    #     tweetslist = self._preprocessing_data(tweetslist)
+    #     # Create a dictionary representation of the documents.
+    #     dictionary = Dictionary(tweetslist)
+    #     # Save dict
+    #     dictionary.save_as_text("model_topic_dict.txt")
+    #     # Filter out words that occur less than 20 documents, or more than 50% of the documents.
+    #     dictionary.filter_extremes(no_below=20, no_above=0.6)
+    #     # Bag-of-words representation of the documents.
+    #     corpus = [dictionary.doc2bow(doc) for doc in tweetslist]
+    #     # Make a index to word dictionary.
+    #     temp = dictionary[0]  # This is only to "load" the dictionary.
+    #     id2word = dictionary.id2token
+    #     # Get train model
+    #     perplexity_logger = PerplexityMetric(corpus=corpus, logger='shell')
+    #     model = LdaModel(corpus=corpus,
+    #                      id2word=id2word,
+    #                      chunksize=chunksize,
+    #                      alpha="auto",
+    #                      eta="auto",
+    #                      iterations=iterations,
+    #                      num_topics=num_topics,
+    #                      passes=passes,
+    #                      eval_every=None,
+    #                      callbacks=[perplexity_logger])
+    #     model.save("model_topic.gensim")
 
-        # Remove pure numbers.
-        data = [[token for token in doc if not token.isnumeric()] for doc in data]
-        # Remove one character word.
-        data = [[token for token in doc if len(token) > 1] for doc in data]
-        # Remove stop words.
-        stop_words = stopwords.words('english')
-        data = [[word for word in doc if word not in stop_words] for doc in data]
-        # Remove the words that i think is meaningless
-        my_stop_words = ['rt','http','https','@']
-        data = [[word for word in doc if word not in my_stop_words] for doc in data]
-        # Lemmatize the documents.
-        lemmatizer = WordNetLemmatizer()
-        data = [[lemmatizer.lemmatize(token) for token in doc] for doc in data]
+    # def _preprocessing_data(self, data):
+    #     """preprocess data for training"""
+    #     # Split the documents into tokens.
+    #     tokenizer = RegexpTokenizer(r'\w+')
+    #     for idx in range(len(data)):
+    #         data[idx] = data[idx].lower()  # Convert to lowercase.
+    #         data[idx] = tokenizer.tokenize(data[idx])  # Split into words.
 
-        # Compute bigrams.
-        # Add bigrams and trigrams to docs (only ones that appear 20 times or more).
-        bigram = Phrases(data, min_count=20)
-        for idx in range(len(data)):
-            for token in bigram[data[idx]]:
-                if '_' in token:
-                    # Token is a bigram, add to document.
-                    data[idx].append(token)
+    #     # Remove pure numbers.
+    #     data = [[token for token in doc if not token.isnumeric()] for doc in data]
+    #     # Remove one character word.
+    #     data = [[token for token in doc if len(token) > 1] for doc in data]
+    #     # Remove stop words.
+    #     stop_words = stopwords.words('english')
+    #     data = [[word for word in doc if word not in stop_words] for doc in data]
+    #     # Remove the words that i think is meaningless
+    #     my_stop_words = ['rt','http','https','@']
+    #     data = [[word for word in doc if word not in my_stop_words] for doc in data]
+    #     # Lemmatize the documents.
+    #     lemmatizer = WordNetLemmatizer()
+    #     data = [[lemmatizer.lemmatize(token) for token in doc] for doc in data]
 
-        return data
+    #     # Compute bigrams.
+    #     # Add bigrams and trigrams to docs (only ones that appear 20 times or more).
+    #     bigram = Phrases(data, min_count=20)
+    #     for idx in range(len(data)):
+    #         for token in bigram[data[idx]]:
+    #             if '_' in token:
+    #                 # Token is a bigram, add to document.
+    #                 data[idx].append(token)
+
+    #     return data
 
 
 if __name__ == "__main__":
     # test sentiment model
-    # print("Testing Sentiment Model")
-    # model_sent = ModelSentiment()
-    # test_str = input("Enter test string:\n")
-    # test_str = preprocess(text=test_str)
-    # while test_str == "":
-    #     test_str = input("Empty string. Try again:\n")
-    # print(model_sent.run(test_str))
+    print("Testing Sentiment Model")
+    model_sent = ModelSentiment()
+    test_str = input("Enter test string:\n")
+    test_str = preprocess(text=test_str)
+    while test_str == "":
+        test_str = input("Empty string. Try again:\n")
+    print(model_sent.run(test_str))
     # test topic model
     print("Testing Topic Model")
     model_topic = ModelTopic()
