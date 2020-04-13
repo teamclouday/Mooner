@@ -14,6 +14,7 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from gensim.models import Phrases
 from gensim.models import LdaModel
 from gensim.corpora import Dictionary
+from gensim.models.callbacks import PerplexityMetric
 from operator import itemgetter
 
 tf.config.set_visible_devices([], 'GPU') # force use CPU, in case no GPU available
@@ -30,6 +31,8 @@ def preprocess(text):
     text = re.sub(r"(http|https)://([A-Z]|[a-z]|[0-9]|/|\.)+", "", text)
     # remove spaces
     text = text.strip()
+    # convert to lower format
+    text = text.lower()
     # return
     return text
 
@@ -113,9 +116,9 @@ class ModelTopic:
             islist = False
         data = self._preprocessing_data(data)
         data = [self.dictionary.doc2bow(x) for x in data]
-        result = [self.model.get_document_topics(x) for x in data]
+        result = [self.model[x] for x in data]
         result = [sorted(x, key=itemgetter(1), reverse=True) for x in result]
-        result = [self.model.print_topic(x[0][0], 1) for x in result]
+        result = [self.model.print_topic(x[0][0], 5) for x in result]
         if not islist:
             result = result[0]
         return result
@@ -125,9 +128,9 @@ class ModelTopic:
         settings = {}
         print("First time init. Need to train model. Please wait")
         # Set training parameters
-        num_topics = 10
-        chunksize = 8000
-        passes = 20
+        num_topics = 20
+        chunksize = 100
+        passes = 50
         iterations = 400
         # read in file
         data = pd.read_csv(self.data_path)
@@ -145,6 +148,7 @@ class ModelTopic:
         temp = dictionary[0]  # This is only to "load" the dictionary.
         id2word = dictionary.id2token
         # Get train model
+        perplexity_logger = PerplexityMetric(corpus=corpus, logger='shell')
         model = LdaModel(corpus=corpus,
                          id2word=id2word,
                          chunksize=chunksize,
@@ -153,7 +157,8 @@ class ModelTopic:
                          iterations=iterations,
                          num_topics=num_topics,
                          passes=passes,
-                         eval_every=None)
+                         eval_every=None,
+                         callbacks=[perplexity_logger])
         model.save("model_topic.gensim")
 
     def _preprocessing_data(self, data):
@@ -195,6 +200,7 @@ if __name__ == "__main__":
     # print("Testing Sentiment Model")
     # model_sent = ModelSentiment()
     # test_str = input("Enter test string:\n")
+    # test_str = preprocess(text=test_str)
     # while test_str == "":
     #     test_str = input("Empty string. Try again:\n")
     # print(model_sent.run(test_str))
@@ -202,6 +208,7 @@ if __name__ == "__main__":
     print("Testing Topic Model")
     model_topic = ModelTopic()
     test_str = input("Enter test string:\n")
+    test_str = preprocess(text=test_str)
     while test_str == "":
         test_str = input("Empty string. Try again:\n")
     print(model_topic.run(test_str))
