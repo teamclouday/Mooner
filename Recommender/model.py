@@ -1,4 +1,6 @@
 # This folder contains all the settings for models
+# Sentiment Analysis model
+# Topic Extraction model
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # disable tensorflow warnings
@@ -75,7 +77,7 @@ class ModelSentiment:
         data = self.tokenizer.texts_to_sequences(data) # convert to sequences
         data = tf.keras.preprocessing.sequence.pad_sequences(data, padding="post", maxlen=self.pad_len)
         result = self.model.predict(data)[0]
-        result = ["positive" if x >= 0.5 else "negative" for x in result]
+        # result = ["positive" if x >= 0.5 else "negative" for x in result]
         #text_result = "positive" if result >= 0.5 else "negative"
         if not islist:
             result = result[0]
@@ -130,6 +132,7 @@ class ModelTopic:
             data = [data]
             islist = False
         result = [self.targets[x] for x in self.model.predict(data)]
+        # result = self.model.predict_proba(data)
         # data = self._preprocessing_data(data)
         # data = [self.dictionary.doc2bow(x) for x in data]
         # result = [self.model.get_document_topics(x) for x in data]
