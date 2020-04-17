@@ -10,6 +10,7 @@ import re
 import shutil
 import string
 import pickle
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 from nltk import word_tokenize
@@ -131,7 +132,7 @@ class ModelTopic:
         if isinstance(data, str):
             data = [data]
             islist = False
-        result = [self.targets[x] for x in self.model.predict(data)]
+        result = self.model.predict_proba(data)
         # result = self.model.predict_proba(data)
         # data = self._preprocessing_data(data)
         # data = [self.dictionary.doc2bow(x) for x in data]
