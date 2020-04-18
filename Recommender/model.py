@@ -77,7 +77,7 @@ class ModelSentiment:
         data = [self._process_str(x) for x in data] # preprocess
         data = self.tokenizer.texts_to_sequences(data) # convert to sequences
         data = tf.keras.preprocessing.sequence.pad_sequences(data, padding="post", maxlen=self.pad_len)
-        result = self.model.predict(data)[0]
+        result = self.model.predict(data)
         # result = ["positive" if x >= 0.5 else "negative" for x in result]
         #text_result = "positive" if result >= 0.5 else "negative"
         if not islist:
