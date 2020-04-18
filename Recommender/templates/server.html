@@ -20,7 +20,7 @@
         }
 
         .app{
-            height: 800px;
+            height: 820px;
             width: 90%;
             border-radius: 20px;
             background-color: rgb(255, 223, 134);
@@ -70,6 +70,8 @@
             margin-right: auto;
             background-color: rgb(255, 248, 183);
             font-size: 20px;
+            padding: 10px;
+            border-radius: 10px;
         }
 
         .user_upper{
@@ -173,12 +175,33 @@
             padding: 10px;
             cursor: default;
         }
+
+        .error{
+            width: 60%;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 20px;
+            text-align: center;
+            background-color: brown;
+            border-radius: 10px;
+            padding: 10px;
+            color: azure;
+        }
     </style>
 
     <!-- Title -->
     <div class="title">
         Twitter User Recommender
     </div>
+
+    {% if webapp.error_log %}
+    <div class="error">
+        {{webapp.error_log}}</br>
+        Please check code and console output
+    </div>
+    {% endif %}
 
     <!-- Application -->
     <div class="app">
@@ -192,14 +215,14 @@
                 {% if webapp.test_mode %}
                     <div class="user_upper_title">Test Mode</div>
                     <div style="font-size: 20px;">Enter a string of tweet:</div>
-                    <input type="text" placeholder="a tweet here" class="user_upper_input" name="tweet"/>
+                    <input type="text" placeholder="a tweet here" class="user_upper_input" name="tweet" value="{{ webapp.test_tweet_str }}"/>
                 <!-- else normal mode -->
                 {% else %}
                     <div class="user_upper_title">Normal Mode</div>
                     <div style="font-size: 20px;">Enter your username:</div>
-                    <input type="text" placeholder="username (use by default if non-empty)" class="user_upper_input" name="username"/>
+                    <input type="text" placeholder="username (screen name)" class="user_upper_input" name="username" value="{{ webapp.username_str }}"/>
                     <div style="font-size: 20px; margin-top: 10px;">Or enter your userid:</div>
-                    <input type="text" placeholder="userid (if you know)" class="user_upper_input" name="userid"/>
+                    <input type="text" placeholder="userid (use by default if non-empty)" class="user_upper_input" name="userid" value="{{ webapp.userid_str }}"/>
                 {% endif %}
                 </div>
                 <button type="submit" class="btn_mode" name="SWITCH">Switch Mode</button>
@@ -208,16 +231,14 @@
                     <div class="model_outputs">
                         Sentiment Analysis: {% if not webapp.test_mode %}(recent 5 tweets){% endif %}</br>
                         <!-- output here -->
-                        Positive
+                        {{ webapp.senti_output_str }}
                     </div>
                     <div class="model_outputs">
                         Topic Prediction: {% if webapp.test_mode %}(top 5 similar){% else %}(recent 5 tweets){% endif %}</br>
                         <!-- output here -->
-                        a</br>
-                        b</br>
-                        c</br>
-                        d</br>
-                        e
+                        {% for name in webapp.topic_outputs %}
+                        {{name[0]}}: {{name[1]}}</br>
+                        {% endfor %}
                     </div>
                 </div>
                 <button type="submit" class="btn_mode" name="RUN" onclick="alert('Running in background. Please Wait')">Run</button>
@@ -237,7 +258,17 @@
                     </div>
                 </div>
                 {% else %}
-
+                {% for u in webapp.recommand_list %}
+                <div class="user user_hover">
+                    <a href="https://twitter.com/{{ u['screen_name'] }}" style="all: unset;">
+                    <img src="{{ u['img'] }}" alt="userimage" class="user_img">
+                    <div style="display: flow-root;">
+                        <div class="user_name">Usrname: {{ u["name"] }}</div>
+                        <div class="user_id">Userid: {{ u["id"] }}</div>
+                    </div>
+                    </a>
+                </div>
+                {% endfor %}
                 {% endif %}
             </div>
         </div>
@@ -247,6 +278,8 @@
 
     <!-- Information -->
     <div class="info">
+        Normal Mode: Display output for most recent 5 tweets</br>
+        Recommendation based on 200 recent tweets</br></br>
         Syracuse University Fall 2020</br>
         CIS 400 Final Project</br>
         Group Members: Sida Zhu, Ziqi Li, Chen Yang, Yurui Xiang, Chenjiang Xia, Dongyu Gai
