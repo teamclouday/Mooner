@@ -185,10 +185,20 @@ class WebApp:
             return
         saved_data = self.userdata[self.topics].to_numpy() # get matrix
         # calculate euclidean distance
-        result = np.apply_along_axis(lambda x: np.linalg.norm(x-self.current_user_data), 1, saved_data) # return an array
+        # result = np.apply_along_axis(lambda x: np.linalg.norm(x-self.current_user_data), 1, saved_data) # return an array
+        # calculate angle between two vectors
+        result = np.apply_along_axis(lambda x: self._calc_angle(x, self.current_user_data), 1, saved_data)
         result = result.argsort()[:10] # top 10 nearest index
         result = self.userdata["ID"].iloc[result].tolist() # get ids
         self.recommand_list = self._get_user_profiles(result)
+
+    # credit: https://kite.com/python/answers/how-to-get-the-angle-between-two-vectors-in-python
+    def _calc_angle(self, vector1, vector2):
+        assert len(vector1) == len(vector2)
+        unit1 = vector1 / np.linalg.norm(vector1)
+        unit2 = vector2 / np.linalg.norm(vector2)
+        dot_product = np.dot(unit1, unit2)
+        return np.arccos(dot_product)
 
     def _get_user_profiles(self, userid_list):
         """Get user profiles"""
