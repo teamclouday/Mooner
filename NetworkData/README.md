@@ -2,7 +2,7 @@
 
 This folder contains code to get and process social network data from Twitter  
 
-To visualize the output graph, use [Gephi](https://gephi.org/)  
+To visualize the output graph, use [Gephi](https://gephi.org/) and open ```fetchcontent.csv```  
 
 ------
 
@@ -15,7 +15,6 @@ To visualize the output graph, use [Gephi](https://gephi.org/)
         "API_sec_key": "your api secret key",
         "Access_token": "your access token",
         "Access_sec_token": "your access secret token"
-    },
-    ...
+    }
 ]
 ```

@@ -4,6 +4,28 @@ Final project for CIS 400 Syracuse University Data Mining
 
 ------
 
+### Recommendation System  
+To run the system:  
+```bash
+cd Recommender
+python3 system.py
+```
+
+Also, make sure to create ```auth.json``` file in ```NetworkData``` folder before running  
+
+------
+
+### Necessary Packages  
+* Tweepy  
+* Scikit-Learn  
+* TensorFlow 2.1.0  
+* nltk  
+* Pandas  
+* NumPy  
+* Flask  
+
+------
+
 ### Work Plan  
 1. Collect a social network from Twitter using API  
     Start date: Mar 30  

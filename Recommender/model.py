@@ -86,13 +86,13 @@ class ModelSentiment:
 
     def _first_init(self):
         """Initialize all required parts, and dump self"""
-        with open(os.path.join("..", "SentimentAnalysis", "dataset", "sentiment140", "data.pickle"), "rb") as inFile:
-            data = pickle.load(inFile)
+        with open(os.path.join("..", "SentimentAnalysis", "models", "tokenizer.pkl"), "rb") as inFile:
+            tokenizer = pickle.load(inFile)
         settings = {}
         settings["PAD_MAXLEN"] = 45
         settings["CHR_RANGE"] = list(range(97, 123)) + list(range(65, 91)) + [ord(' '), ord('\'')]
         settings["STEMMER"] = SnowballStemmer("english")
-        settings["TOKENIZER"] = data[2] # load required tokenizer
+        settings["TOKENIZER"] = tokenizer
         # dump
         with open("model_sentiment.pkl", "wb") as outFile:
             pickle.dump(settings, outFile)
